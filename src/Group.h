@@ -63,6 +63,11 @@ protected:
     Group(int extensionOptions, unsigned int maxPayload, Hub *hub, uS::NodeData *nodeData);
     void stopListening();
 
+private:
+    int closeCode;
+    std::string closeMessage;
+    std::string closeContents;
+    
 public:
     void onConnection(std::function<void(WebSocket<isServer> *, HttpRequest)> handler);
     void onTransfer(std::function<void(WebSocket<isServer> *)> handler);
@@ -99,6 +104,16 @@ public:
         if (listenOptions == TRANSFERS && !async) {
             addAsync();
         }
+    }
+    
+    int getCloseCode() const { return closeCode; }
+    const std::string& getCloseMessage() const { return closeMessage; }
+    const std::string& getCloseContents() const { return closeContents; }
+    
+    void setCloseStatus(int code, const std::string& message, const std::string& contents) {
+        closeCode = code;
+        closeMessage = message;
+        closeContents = contents;
     }
 
     template <class F>

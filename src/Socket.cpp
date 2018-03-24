@@ -1,5 +1,9 @@
 #include "Socket.h"
 
+#if defined ( __APPLE__ )
+#   include "TargetConditionals.h"
+#endif
+
 namespace uS {
 
 Socket::Address Socket::getAddress()
@@ -11,8 +15,11 @@ Socket::Address Socket::getAddress()
     if (getpeername(fd, (sockaddr *) &addr, &addrLength) == -1) {
         return {0, "", ""};
     }
-
+#if defined( __APPLE__ ) && ( defined( TARGET_IPHONE_SIMULATOR ) || defined( TARGET_OS_IPHONE ))
+    static char buf[INET6_ADDRSTRLEN];
+#else
     static __thread char buf[INET6_ADDRSTRLEN];
+#endif
 
     if (addr.ss_family == AF_INET) {
         sockaddr_in *ipv4 = (sockaddr_in *) &addr;

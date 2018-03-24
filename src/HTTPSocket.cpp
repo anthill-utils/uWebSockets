@@ -2,6 +2,7 @@
 #include "Group.h"
 #include "Extensions.h"
 #include <cstdio>
+#include <sstream>
 
 #define MAX_HEADERS 100
 #define MAX_HEADER_BUFFER_SIZE 4096
@@ -111,7 +112,7 @@ uS::Socket *HttpSocket<isServer>::onData(uS::Socket *s, char *data, size_t lengt
                             // Warning: changes socket, needs to inform the stack of Poll address change!
                             WebSocket<isServer> *webSocket = new WebSocket<isServer>(perMessageDeflate, httpSocket);
                             webSocket->template setState<WebSocket<isServer>>();
-                            webSocket->change(webSocket->nodeData->loop, webSocket, webSocket->setPoll(UV_READABLE));
+                            webSocket->change(webSocket->nodeData->loop, webSocket, webSocket->setPoll(UWS_READABLE));
                             Group<isServer>::from(webSocket)->addWebSocket(webSocket);
 
                             webSocket->cork(true);
@@ -163,7 +164,7 @@ uS::Socket *HttpSocket<isServer>::onData(uS::Socket *s, char *data, size_t lengt
                     httpSocket->cancelTimeout();
                     webSocket->setUserData(httpSocket->httpUser);
                     webSocket->template setState<WebSocket<isServer>>();
-                    webSocket->change(webSocket->nodeData->loop, webSocket, webSocket->setPoll(UV_READABLE));
+                    webSocket->change(webSocket->nodeData->loop, webSocket, webSocket->setPoll(UWS_READABLE));
                     Group<isServer>::from(webSocket)->addWebSocket(webSocket);
 
                     webSocket->cork(true);
@@ -176,6 +177,13 @@ uS::Socket *HttpSocket<isServer>::onData(uS::Socket *s, char *data, size_t lengt
 
                     return webSocket;
                 } else {
+                    int code = 0;
+                    std::istringstream is(std::string(headers[0].value, headers[0].valueLength));
+                    is >> code;
+                    std::string message;
+                    std::getline(is, message);
+                    std::string contents(cursor, end - cursor);
+                    Group<CLIENT>::from(httpSocket)->setCloseStatus(code, message, contents);
                     httpSocket->onEnd(httpSocket);
                 }
                 return httpSocket;

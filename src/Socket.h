@@ -150,19 +150,19 @@ protected:
             return;
         }
 
-        if (!socket->messageQueue.empty() && ((events & UV_WRITABLE) || SSL_want(socket->ssl) == SSL_READING)) {
+        if (!socket->messageQueue.empty() && ((events & UWS_WRITABLE) || SSL_want(socket->ssl) == SSL_READING)) {
             socket->cork(true);
             while (true) {
                 Queue::Message *messagePtr = socket->messageQueue.front();
-                int sent = SSL_write(socket->ssl, messagePtr->data, (int) messagePtr->length);
+                int sent = SSL_write(socket->ssl, messagePtr->data, messagePtr->length);
                 if (sent == (ssize_t) messagePtr->length) {
                     if (messagePtr->callback) {
                         messagePtr->callback(p, messagePtr->callbackData, false, messagePtr->reserved);
                     }
                     socket->messageQueue.pop();
                     if (socket->messageQueue.empty()) {
-                        if ((socket->state.poll & UV_WRITABLE) && SSL_want(socket->ssl) != SSL_WRITING) {
-                            socket->change(socket->nodeData->loop, socket, socket->setPoll(UV_READABLE));
+                        if ((socket->state.poll & UWS_WRITABLE) && SSL_want(socket->ssl) != SSL_WRITING) {
+                            socket->change(socket->nodeData->loop, socket, socket->setPoll(UWS_READABLE));
                         }
                         break;
                     }
@@ -171,8 +171,8 @@ protected:
                     case SSL_ERROR_WANT_READ:
                         break;
                     case SSL_ERROR_WANT_WRITE:
-                        if ((socket->getPoll() & UV_WRITABLE) == 0) {
-                            socket->change(socket->nodeData->loop, socket, socket->setPoll(socket->getPoll() | UV_WRITABLE));
+                        if ((socket->getPoll() & UWS_WRITABLE) == 0) {
+                            socket->change(socket->nodeData->loop, socket, socket->setPoll(socket->getPoll() | UWS_WRITABLE));
                         }
                         break;
                     default:
@@ -185,7 +185,7 @@ protected:
             socket->cork(false);
         }
 
-        if (events & UV_READABLE) {
+        if (events & UWS_READABLE) {
             do {
                 int length = SSL_read(socket->ssl, socket->nodeData->recvBuffer, socket->nodeData->recvLength);
                 if (length <= 0) {
@@ -193,8 +193,8 @@ protected:
                     case SSL_ERROR_WANT_READ:
                         break;
                     case SSL_ERROR_WANT_WRITE:
-                        if ((socket->getPoll() & UV_WRITABLE) == 0) {
-                            socket->change(socket->nodeData->loop, socket, socket->setPoll(socket->getPoll() | UV_WRITABLE));
+                        if ((socket->getPoll() & UWS_WRITABLE) == 0) {
+                            socket->change(socket->nodeData->loop, socket, socket->setPoll(socket->getPoll() | UWS_WRITABLE));
                         }
                         break;
                     default:
@@ -224,8 +224,8 @@ protected:
             return;
         }
 
-        if (events & UV_WRITABLE) {
-            if (!socket->messageQueue.empty() && (events & UV_WRITABLE)) {
+        if (events & UWS_WRITABLE) {
+            if (!socket->messageQueue.empty() && (events & UWS_WRITABLE)) {
                 socket->cork(true);
                 while (true) {
                     Queue::Message *messagePtr = socket->messageQueue.front();
@@ -237,7 +237,7 @@ protected:
                         socket->messageQueue.pop();
                         if (socket->messageQueue.empty()) {
                             // todo, remove bit, don't set directly
-                            socket->change(socket->nodeData->loop, socket, socket->setPoll(UV_READABLE));
+                            socket->change(socket->nodeData->loop, socket, socket->setPoll(UWS_READABLE));
                             break;
                         }
                     } else if (sent == SOCKET_ERROR) {
@@ -256,8 +256,8 @@ protected:
             }
         }
 
-        if (events & UV_READABLE) {
-            int length = (int) recv(socket->getFd(), nodeData->recvBuffer, nodeData->recvLength, 0);
+        if (events & UWS_READABLE) {
+            int length = recv(socket->getFd(), nodeData->recvBuffer, nodeData->recvLength, 0);
             if (length > 0) {
                 STATE::onData((Socket *) p, nodeData->recvBuffer, length);
             } else if (length <= 0 || (length == SOCKET_ERROR && !netContext->wouldBlock())) {
@@ -306,17 +306,17 @@ protected:
         if (messageQueue.empty()) {
 
             if (ssl) {
-                sent = SSL_write(ssl, message->data, (int) message->length);
+                sent = SSL_write(ssl, message->data, message->length);
                 if (sent == (ssize_t) message->length) {
                     wasTransferred = false;
                     return true;
                 } else if (sent < 0) {
-                    switch (SSL_get_error(ssl, (int) sent)) {
+                    switch (SSL_get_error(ssl, sent)) {
                     case SSL_ERROR_WANT_READ:
                         break;
                     case SSL_ERROR_WANT_WRITE:
-                        if ((getPoll() & UV_WRITABLE) == 0) {
-                            setPoll(getPoll() | UV_WRITABLE);
+                        if ((getPoll() & UWS_WRITABLE) == 0) {
+                            setPoll(getPoll() | UWS_WRITABLE);
                             changePoll(this);
                         }
                         break;
@@ -338,8 +338,8 @@ protected:
                     message->data += sent;
                 }
 
-                if ((getPoll() & UV_WRITABLE) == 0) {
-                    setPoll(getPoll() | UV_WRITABLE);
+                if ((getPoll() & UWS_WRITABLE) == 0) {
+                    setPoll(getPoll() | UWS_WRITABLE);
                     changePoll(this);
                 }
             }
@@ -355,7 +355,7 @@ protected:
 
         if (hasEmptyQueue()) {
             if (estimatedLength <= uS::NodeData::preAllocMaxSize) {
-                int memoryLength = (int) estimatedLength;
+                int memoryLength = estimatedLength;
                 int memoryIndex = nodeData->getMemoryBlockIndex(memoryLength);
 
                 Queue::Message *messagePtr = (Queue::Message *) nodeData->getSmallMemoryBlock(memoryIndex);
